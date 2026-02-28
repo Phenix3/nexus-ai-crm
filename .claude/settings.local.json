@@ -4,7 +4,9 @@
       "Bash(npm install:*)",
       "Bash(npx husky:*)",
       "Bash(npx shadcn@latest:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)"
     ]
   }
 }
