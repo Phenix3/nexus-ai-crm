@@ -1,5 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
+// No auth required
 const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
@@ -8,9 +10,26 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
+// Auth + active org required
+const isAppRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  "/contacts(.*)",
+  "/deals(.*)",
+  "/settings(.*)",
+]);
+
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
+  if (isPublicRoute(req)) return;
+
+  // All non-public routes require authentication
+  await auth.protect();
+
+  // App routes also require an active organisation cookie
+  if (isAppRoute(req)) {
+    const orgId = req.cookies.get("org_id")?.value;
+    if (!orgId) {
+      return NextResponse.redirect(new URL("/new-org", req.url));
+    }
   }
 });
 
