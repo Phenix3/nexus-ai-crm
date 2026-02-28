@@ -48,7 +48,7 @@ export default function BillingPage() {
             </div>
           </div>
           <p className="shrink-0 text-lg font-bold text-zinc-900 dark:text-zinc-50">
-            €29<span className="text-sm font-normal text-zinc-500">/mo</span>
+            10 000FCFA<span className="text-sm font-normal text-zinc-500">/mo</span>
           </p>
         </div>
 

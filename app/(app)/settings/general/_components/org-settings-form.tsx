@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const TIMEZONES = [
+  "Africa/Douala",
   "Europe/Paris",
   "Europe/London",
   "Europe/Berlin",
@@ -30,6 +31,7 @@ const TIMEZONES = [
 ];
 
 const CURRENCIES = [
+  { code: "XAF", label: "Francs CFA (FCFA)" },
   { code: "EUR", label: "Euro (€)" },
   { code: "USD", label: "US Dollar ($)" },
   { code: "GBP", label: "British Pound (£)" },
