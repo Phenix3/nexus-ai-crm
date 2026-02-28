@@ -5,6 +5,8 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   slug: text("slug").unique().notNull(),
   logoUrl: text("logo_url"),
+  timezone: text("timezone").default("Europe/Paris").notNull(),
+  currency: text("currency").default("EUR").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

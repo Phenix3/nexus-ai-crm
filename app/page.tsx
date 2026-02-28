@@ -1,7 +1,17 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getActiveOrgId } from "@/lib/org";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+
+  if (userId) {
+    const orgId = await getActiveOrgId();
+    redirect(orgId ? "/dashboard" : "/new-org");
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-zinc-50 dark:bg-zinc-950">
       <div className="text-center">
