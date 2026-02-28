@@ -1,15 +1,16 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 
 export async function setActiveOrganization(orgId: string): Promise<void> {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const user = await getUser();
+  if (!user) redirect("/sign-in");
+  const userId = user.id;
 
   // Verify the user is actually a member of this org
   const membership = await db

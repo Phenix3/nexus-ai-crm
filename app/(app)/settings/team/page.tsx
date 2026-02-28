@@ -1,7 +1,7 @@
-import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { invitations, organizationMembers, organizations, users } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 import { getCurrentMembership } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +10,11 @@ import { InviteForm } from "./_components/invite-form";
 import { MemberActions } from "./_components/member-actions";
 
 export default async function TeamPage() {
-  const { userId } = await auth();
+  const authUser = await getUser();
   const orgId = await getActiveOrgId();
 
-  if (!userId || !orgId) return null;
+  if (!authUser || !orgId) return null;
+  const userId = authUser.id;
 
   const [membership, members, pendingInvites, org] = await Promise.all([
     getCurrentMembership(),

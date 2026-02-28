@@ -1,14 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateOrgForm } from "./_components/create-org-form";
 
 export default async function NewOrgPage() {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const user = await getUser();
+  if (!user) redirect("/sign-in");
+  const userId = user.id;
 
   // If user already belongs to an org, send them to select-org instead
   const memberships = await db

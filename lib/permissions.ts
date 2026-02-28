@@ -1,7 +1,7 @@
-import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
 type Role = "owner" | "admin" | "member";
@@ -13,8 +13,9 @@ const ROLE_HIERARCHY: Record<Role, number> = {
 };
 
 export async function getCurrentMembership() {
-  const { userId } = await auth();
-  if (!userId) return null;
+  const user = await getUser();
+  if (!user) return null;
+  const userId = user.id;
 
   const orgId = await getActiveOrgId();
   if (!orgId) return null;

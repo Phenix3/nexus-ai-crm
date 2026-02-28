@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizations, organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 
 const schema = z.object({
@@ -26,8 +26,9 @@ export async function createOrganization(
   _prev: CreateOrgState,
   formData: FormData
 ): Promise<CreateOrgState> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
+  const userId = user.id;
 
   const parsed = schema.safeParse({
     name: formData.get("name"),

@@ -1,8 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { invitations, organizations } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -12,9 +12,9 @@ type Props = { params: Promise<{ token: string }> };
 
 export default async function InvitePage({ params }: Props) {
   const { token } = await params;
-  const { userId } = await auth();
+  const user = await getUser();
 
-  if (!userId) {
+  if (!user) {
     redirect(`/sign-in?redirect_url=/invite/${token}`);
   }
 

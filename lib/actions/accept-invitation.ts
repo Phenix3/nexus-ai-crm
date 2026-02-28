@@ -1,15 +1,16 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { invitations, organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 
 export async function acceptInvitation(token: string): Promise<{ error: string } | never> {
-  const { userId } = await auth();
-  if (!userId) redirect(`/sign-in?redirect_url=/invite/${token}`);
+  const user = await getUser();
+  if (!user) redirect(`/sign-in?redirect_url=/invite/${token}`);
+  const userId = user.id;
 
   const [invite] = await db
     .select()

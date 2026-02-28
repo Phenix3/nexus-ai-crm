@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { contacts } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
@@ -72,8 +72,9 @@ export async function createContact(
   _prev: ContactFormState,
   formData: FormData
 ): Promise<ContactFormState> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
+  const userId = user.id;
 
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };
@@ -116,8 +117,8 @@ export async function updateContact(
   _prev: ContactFormState,
   formData: FormData
 ): Promise<ContactFormState> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
 
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };
@@ -159,8 +160,8 @@ export async function updateContact(
 }
 
 export async function deleteContact(id: string): Promise<{ error?: string }> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
 
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };

@@ -9,7 +9,8 @@
       "Bash(cp:*)",
       "Bash(ls:*)",
       "Bash(head:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm:*)"
     ]
   }
 }

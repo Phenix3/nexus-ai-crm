@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { render } from "@react-email/render";
 import { db } from "@/db";
 import { invitations, organizationMembers, organizations, users } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 import { requireRole } from "@/lib/permissions";
 import { resend, FROM_EMAIL } from "@/lib/resend";
@@ -23,8 +23,9 @@ export type InviteState = {
 };
 
 export async function inviteMember(_prev: InviteState, formData: FormData): Promise<InviteState> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
+  const userId = user.id;
 
   await requireRole("admin");
 

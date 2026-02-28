@@ -1,11 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
 export default async function LandingPage() {
-  const { userId } = await auth();
+  const user = await getUser();
+  const userId = user?.id;
 
   if (userId) {
     const orgId = await getActiveOrgId();

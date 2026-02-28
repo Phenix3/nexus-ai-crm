@@ -1,11 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { notes } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
 const noteSchema = z.object({
@@ -34,8 +34,9 @@ export async function createNote(
   _prev: NoteFormState,
   formData: FormData
 ): Promise<NoteFormState> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
+  const userId = user.id;
 
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };
@@ -57,8 +58,8 @@ export async function createNote(
 }
 
 export async function deleteNote(noteId: string, contactId: string): Promise<{ error?: string }> {
-  const { userId } = await auth();
-  if (!userId) return { error: "Not authenticated" };
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
 
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };

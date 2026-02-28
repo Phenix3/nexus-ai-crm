@@ -1,16 +1,17 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { organizations, organizationMembers } from "@/db/schema";
+import { getUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { setActiveOrganization } from "@/lib/actions/set-active-organization";
 
 export default async function SelectOrgPage() {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const user = await getUser();
+  if (!user) redirect("/sign-in");
+  const userId = user.id;
 
   const memberships = await db
     .select({
