@@ -10,7 +10,12 @@
       "Bash(ls:*)",
       "Bash(head:*)",
       "Bash(grep:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(npx playwright:*)",
+      "Bash(python3:*)",
+      "Bash(py:*)",
+      "Bash(python:*)",
+      "Bash(cat:*)"
     ]
   }
 }

@@ -35,9 +35,7 @@ export function ProfileForm({ defaultFullName, email, avatarUrl }: Props) {
         </Avatar>
         <div>
           <p className="text-sm font-medium">{defaultFullName ?? email}</p>
-          <p className="text-xs text-zinc-500">
-            Avatar is managed via your Clerk account settings.
-          </p>
+          <p className="text-xs text-zinc-500">Avatar upload coming soon.</p>
         </div>
       </div>
 
@@ -52,7 +50,7 @@ export function ProfileForm({ defaultFullName, email, avatarUrl }: Props) {
       <div className="space-y-2">
         <Label>Email</Label>
         <Input value={email} disabled className="bg-zinc-50 dark:bg-zinc-800" readOnly />
-        <p className="text-xs text-zinc-400">Email is managed via your Clerk account settings.</p>
+        <p className="text-xs text-zinc-400">Email cannot be changed after account creation.</p>
       </div>
 
       {state.error && <p className="text-sm text-red-500">{state.error}</p>}

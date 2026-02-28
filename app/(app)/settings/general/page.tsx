@@ -1,7 +1,7 @@
 import { getActiveOrgId } from "@/lib/org";
 import { Separator } from "@/components/ui/separator";
 import { OrgSettingsForm } from "./_components/org-settings-form";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function GeneralSettingsPage() {
   const supabase = await createClient();
@@ -12,8 +12,7 @@ export default async function GeneralSettingsPage() {
     .from("organizations")
     .select("*")
     .eq("id", orgId)
-    .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!org) return null;
 

@@ -1,7 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
-import { createClient } from "@/lib/supabase/client";
 
 type Role = "owner" | "admin" | "member";
 
@@ -12,7 +11,6 @@ const ROLE_HIERARCHY: Record<Role, number> = {
 };
 
 export async function getCurrentMembership() {
-  const supabase = await createClient();
   const user = await getUser();
   if (!user) return null;
   const userId = user.id;
@@ -20,14 +18,18 @@ export async function getCurrentMembership() {
   const orgId = await getActiveOrgId();
   if (!orgId) return null;
 
+  const supabase = await createClient();
+
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("*")
+    .select("role")
     .eq("organization_id", orgId)
     .eq("user_id", userId)
-    .limit(1);
+    .maybeSingle();
 
-  return membership ? { ...membership, orgId } : null;
+  if (!membership) return null;
+
+  return { role: membership.role as Role, orgId };
 }
 
 /**
@@ -41,7 +43,7 @@ export async function requireRole(minRole: Role) {
     throw new Error("Not a member of this organisation");
   }
 
-  if (ROLE_HIERARCHY[membership.role as Role] < ROLE_HIERARCHY[minRole]) {
+  if (ROLE_HIERARCHY[membership.role] < ROLE_HIERARCHY[minRole]) {
     throw new Error("Insufficient permissions");
   }
 

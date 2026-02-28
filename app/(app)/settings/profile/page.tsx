@@ -1,20 +1,18 @@
 import { getUser } from "@/lib/auth";
 import { Separator } from "@/components/ui/separator";
 import { ProfileForm } from "./_components/profile-form";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ProfileSettingsPage() {
   const supabase = await createClient();
   const authUser = await getUser();
   if (!authUser) return null;
-  const userId = authUser.id;
 
   const { data: user } = await supabase
-    .from("auth.users")
-    .select("*")
-    .eq("id", userId)
-    .limit(1)
-    .single();
+    .from("users")
+    .select("full_name, email, avatar_url")
+    .eq("id", authUser.id)
+    .maybeSingle();
 
   if (!user) return null;
 
@@ -28,8 +26,8 @@ export default async function ProfileSettingsPage() {
       <Separator />
 
       <ProfileForm
-        defaultFullName={user.user_metadata.full_name}
-        email={user.email}
+        defaultFullName={user.full_name}
+        email={user.email ?? authUser.email ?? ""}
         avatarUrl={user.avatar_url}
       />
     </div>

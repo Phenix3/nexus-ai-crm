@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { invitations, organizationMembers, organizations, users } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 import { getCurrentMembership } from "@/lib/permissions";
@@ -16,35 +14,32 @@ export default async function TeamPage() {
   if (!authUser || !orgId) return null;
   const userId = authUser.id;
 
-  const [membership, members, pendingInvites, org] = await Promise.all([
+  const supabase = await createClient();
+
+  const [membership, membersResult, pendingResult, orgResult] = await Promise.all([
     getCurrentMembership(),
-    db
-      .select({
-        userId: organizationMembers.userId,
-        role: organizationMembers.role,
-        fullName: users.fullName,
-        email: users.email,
-        avatarUrl: users.avatarUrl,
-      })
-      .from(organizationMembers)
-      .innerJoin(users, eq(organizationMembers.userId, users.id))
-      .where(eq(organizationMembers.organizationId, orgId)),
-    db
-      .select({
-        id: invitations.id,
-        email: invitations.email,
-        role: invitations.role,
-        expiresAt: invitations.expiresAt,
-      })
-      .from(invitations)
-      .where(eq(invitations.organizationId, orgId))
-      .orderBy(invitations.createdAt),
-    db
-      .select({ name: organizations.name })
-      .from(organizations)
-      .where(eq(organizations.id, orgId))
-      .limit(1),
+
+    // Members with their user details via FK join
+    supabase
+      .from("organization_members")
+      .select("user_id, role, users(full_name, email, avatar_url)")
+      .eq("organization_id", orgId),
+
+    // Pending invitations (not yet accepted)
+    supabase
+      .from("invitations")
+      .select("id, email, role, expires_at")
+      .eq("organization_id", orgId)
+      .is("accepted_at", null)
+      .order("created_at", { ascending: true }),
+
+    // Organisation name
+    supabase.from("organizations").select("name").eq("id", orgId).maybeSingle(),
   ]);
+
+  const members = membersResult.data ?? [];
+  const pendingInvites = pendingResult.data ?? [];
+  const org = orgResult.data;
 
   const canManage = membership?.role === "owner" || membership?.role === "admin";
 
@@ -52,7 +47,7 @@ export default async function TeamPage() {
     <div className="max-w-2xl space-y-8">
       <div>
         <h2 className="text-xl font-semibold">Team</h2>
-        <p className="text-sm text-zinc-500">{org[0]?.name}</p>
+        <p className="text-sm text-zinc-500">{org?.name}</p>
       </div>
 
       {/* Invite */}
@@ -69,27 +64,32 @@ export default async function TeamPage() {
       <section className="space-y-3">
         <h3 className="text-sm font-medium">Members ({members.length})</h3>
         <ul className="divide-y rounded-lg border">
-          {members.map((m) => (
-            <li key={m.userId} className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{m.fullName ?? m.email}</p>
-                {m.fullName && <p className="truncate text-xs text-zinc-500">{m.email}</p>}
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge
-                  variant={m.role === "owner" ? "default" : "secondary"}
-                  className="capitalize"
-                >
-                  {m.role}
-                </Badge>
-                <MemberActions
-                  targetUserId={m.userId}
-                  currentRole={m.role}
-                  canManage={canManage && m.userId !== userId}
-                />
-              </div>
-            </li>
-          ))}
+          {members.map((m) => {
+            const user = Array.isArray(m.users) ? m.users[0] : m.users;
+            return (
+              <li key={m.user_id} className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{user?.full_name ?? user?.email}</p>
+                  {user?.full_name && (
+                    <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge
+                    variant={m.role === "owner" ? "default" : "secondary"}
+                    className="capitalize"
+                  >
+                    {m.role}
+                  </Badge>
+                  <MemberActions
+                    targetUserId={m.user_id}
+                    currentRole={m.role}
+                    canManage={canManage && m.user_id !== userId}
+                  />
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -108,7 +108,7 @@ export default async function TeamPage() {
                       {inv.role}
                     </Badge>
                     <span className="text-xs text-zinc-400">
-                      Expires {new Date(inv.expiresAt).toLocaleDateString()}
+                      Expires {new Date(inv.expires_at).toLocaleDateString()}
                     </span>
                   </div>
                 </li>

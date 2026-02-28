@@ -1,10 +1,9 @@
 import { getUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import { createClient } from "@/lib/supabase/client";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
   const authUser = await getUser();
 
   let userName: string | null = null;
@@ -12,13 +11,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let userAvatarUrl: string | null = null;
 
   if (authUser) {
+    const supabase = await createClient();
     const { data: dbUser } = await supabase
-      .from("auth.users")
-      .select("*")
+      .from("users")
+      .select("full_name, email, avatar_url")
       .eq("id", authUser.id)
-      .limit(1)
-      .single();
-    console.log(dbUser);
+      .maybeSingle();
+
     if (dbUser) {
       userName = dbUser.full_name;
       userEmail = dbUser.email;
@@ -27,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
       <Sidebar userName={userName} userEmail={userEmail} userAvatarUrl={userAvatarUrl} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
