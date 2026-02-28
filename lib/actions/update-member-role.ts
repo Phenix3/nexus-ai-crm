@@ -1,10 +1,7 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
-import { organizationMembers } from "@/db/schema";
-import { getActiveOrgId } from "@/lib/org";
+import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/permissions";
 
 const schema = z.object({
@@ -20,27 +17,21 @@ export async function updateMemberRole(
 
   schema.parse({ targetUserId, role });
 
-  const [target] = await db
-    .select({ role: organizationMembers.role })
-    .from(organizationMembers)
-    .where(
-      and(
-        eq(organizationMembers.organizationId, membership.orgId),
-        eq(organizationMembers.userId, targetUserId)
-      )
-    )
-    .limit(1);
+  const supabase = await createClient();
+
+  const { data: target } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", membership.orgId)
+    .eq("user_id", targetUserId)
+    .maybeSingle();
 
   if (!target) throw new Error("Member not found");
   if (target.role === "owner") throw new Error("Cannot change the owner's role");
 
-  await db
-    .update(organizationMembers)
-    .set({ role })
-    .where(
-      and(
-        eq(organizationMembers.organizationId, membership.orgId),
-        eq(organizationMembers.userId, targetUserId)
-      )
-    );
+  await supabase
+    .from("organization_members")
+    .update({ role })
+    .eq("organization_id", membership.orgId)
+    .eq("user_id", targetUserId);
 }

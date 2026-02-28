@@ -1,10 +1,8 @@
 "use server";
 
-import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/db";
-import { contacts } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
@@ -26,44 +24,63 @@ export type ContactFormState = {
   success?: boolean;
 };
 
+export type Contact = {
+  id: string;
+  organization_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  job_title: string | null;
+  linkedin_url: string | null;
+  avatar_url: string | null;
+  score: number;
+  owner_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getContacts(search?: string) {
+export async function getContacts(search?: string): Promise<Contact[]> {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No active organization");
 
-  const query = db
-    .select()
-    .from(contacts)
-    .where(
-      search
-        ? and(
-            eq(contacts.organizationId, orgId),
-            or(
-              ilike(contacts.firstName, `%${search}%`),
-              ilike(contacts.lastName, `%${search}%`),
-              ilike(contacts.email, `%${search}%`),
-              ilike(contacts.company, `%${search}%`)
-            )
-          )
-        : eq(contacts.organizationId, orgId)
-    )
-    .orderBy(asc(contacts.firstName), asc(contacts.lastName));
+  const supabase = await createClient();
 
-  return query;
+  let query = supabase
+    .from("contacts")
+    .select()
+    .eq("organization_id", orgId)
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true });
+
+  if (search) {
+    query = query.or(
+      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Contact[];
 }
 
-export async function getContact(id: string) {
+export async function getContact(id: string): Promise<Contact | null> {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No active organization");
 
-  const [contact] = await db
-    .select()
-    .from(contacts)
-    .where(and(eq(contacts.id, id), eq(contacts.organizationId, orgId)))
-    .limit(1);
+  const supabase = await createClient();
 
-  return contact ?? null;
+  const { data } = await supabase
+    .from("contacts")
+    .select()
+    .eq("id", id)
+    .eq("organization_id", orgId)
+    .maybeSingle();
+
+  return (data as Contact) ?? null;
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -96,17 +113,21 @@ export async function createContact(
 
   const { firstName, lastName, email, phone, company, jobTitle, linkedinUrl } = parsed.data;
 
-  await db.insert(contacts).values({
-    organizationId: orgId,
-    firstName,
-    lastName: lastName || null,
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("contacts").insert({
+    organization_id: orgId,
+    first_name: firstName,
+    last_name: lastName || null,
     email: email || null,
     phone: phone || null,
     company: company || null,
-    jobTitle: jobTitle || null,
-    linkedinUrl: linkedinUrl || null,
-    ownerId: userId,
+    job_title: jobTitle || null,
+    linkedin_url: linkedinUrl || null,
+    owner_id: userId,
   });
+
+  if (error) return { error: error.message };
 
   revalidatePath("/contacts");
   return { success: true };
@@ -140,19 +161,24 @@ export async function updateContact(
 
   const { firstName, lastName, email, phone, company, jobTitle, linkedinUrl } = parsed.data;
 
-  await db
-    .update(contacts)
-    .set({
-      firstName,
-      lastName: lastName || null,
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("contacts")
+    .update({
+      first_name: firstName,
+      last_name: lastName || null,
       email: email || null,
       phone: phone || null,
       company: company || null,
-      jobTitle: jobTitle || null,
-      linkedinUrl: linkedinUrl || null,
-      updatedAt: new Date(),
+      job_title: jobTitle || null,
+      linkedin_url: linkedinUrl || null,
+      updated_at: new Date().toISOString(),
     })
-    .where(and(eq(contacts.id, id), eq(contacts.organizationId, orgId)));
+    .eq("id", id)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
@@ -166,7 +192,15 @@ export async function deleteContact(id: string): Promise<{ error?: string }> {
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };
 
-  await db.delete(contacts).where(and(eq(contacts.id, id), eq(contacts.organizationId, orgId)));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("contacts")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/contacts");
   return {};

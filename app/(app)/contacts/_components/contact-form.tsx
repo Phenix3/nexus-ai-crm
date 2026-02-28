@@ -5,8 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createContact, updateContact, type ContactFormState } from "@/lib/actions/contacts";
-import type { Contact } from "@/db/schema/contacts";
+import {
+  createContact,
+  updateContact,
+  type ContactFormState,
+  type Contact,
+} from "@/lib/actions/contacts";
 
 interface ContactFormProps {
   open: boolean;
@@ -50,7 +54,7 @@ export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
               <Input
                 id="firstName"
                 name="firstName"
-                defaultValue={contact?.firstName ?? ""}
+                defaultValue={contact?.first_name ?? ""}
                 placeholder="Jane"
               />
               {state.fieldErrors?.firstName && (
@@ -63,7 +67,7 @@ export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
               <Input
                 id="lastName"
                 name="lastName"
-                defaultValue={contact?.lastName ?? ""}
+                defaultValue={contact?.last_name ?? ""}
                 placeholder="Smith"
               />
             </div>
@@ -110,7 +114,7 @@ export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
             <Input
               id="jobTitle"
               name="jobTitle"
-              defaultValue={contact?.jobTitle ?? ""}
+              defaultValue={contact?.job_title ?? ""}
               placeholder="Head of Sales"
             />
           </div>
@@ -120,7 +124,7 @@ export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
             <Input
               id="linkedinUrl"
               name="linkedinUrl"
-              defaultValue={contact?.linkedinUrl ?? ""}
+              defaultValue={contact?.linkedin_url ?? ""}
               placeholder="https://linkedin.com/in/..."
             />
             {state.fieldErrors?.linkedinUrl && (

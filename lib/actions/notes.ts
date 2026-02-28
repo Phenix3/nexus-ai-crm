@@ -1,10 +1,8 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/db";
-import { notes } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
@@ -18,15 +16,32 @@ export type NoteFormState = {
   success?: boolean;
 };
 
-export async function getContactNotes(contactId: string) {
+export type Note = {
+  id: string;
+  organization_id: string;
+  contact_id: string | null;
+  deal_id: string | null;
+  user_id: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getContactNotes(contactId: string): Promise<Note[]> {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No active organization");
 
-  return db
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("notes")
     .select()
-    .from(notes)
-    .where(and(eq(notes.contactId, contactId), eq(notes.organizationId, orgId)))
-    .orderBy(desc(notes.createdAt));
+    .eq("contact_id", contactId)
+    .eq("organization_id", orgId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Note[];
 }
 
 export async function createNote(
@@ -46,12 +61,16 @@ export async function createNote(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  await db.insert(notes).values({
-    organizationId: orgId,
-    contactId,
-    userId,
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("notes").insert({
+    organization_id: orgId,
+    contact_id: contactId,
+    user_id: userId,
     content: parsed.data.content,
   });
+
+  if (error) return { error: error.message };
 
   revalidatePath(`/contacts/${contactId}`);
   return { success: true };
@@ -64,7 +83,15 @@ export async function deleteNote(noteId: string, contactId: string): Promise<{ e
   const orgId = await getActiveOrgId();
   if (!orgId) return { error: "No active organization" };
 
-  await db.delete(notes).where(and(eq(notes.id, noteId), eq(notes.organizationId, orgId)));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
 
   revalidatePath(`/contacts/${contactId}`);
   return {};

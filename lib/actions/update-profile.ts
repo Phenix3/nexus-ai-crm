@@ -1,10 +1,8 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { db } from "@/db";
-import { users } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 
 const schema = z.object({
@@ -31,10 +29,14 @@ export async function updateProfile(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  await db
-    .update(users)
-    .set({ fullName: parsed.data.fullName, updatedAt: new Date() })
-    .where(eq(users.id, userId));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("users")
+    .update({ full_name: parsed.data.fullName, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/settings/profile");
   return { success: "Profile updated" };

@@ -1,16 +1,20 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { users } from "@/db/schema";
 import { getUser } from "@/lib/auth";
 import { Separator } from "@/components/ui/separator";
 import { ProfileForm } from "./_components/profile-form";
+import { createClient } from "@/lib/supabase/client";
 
 export default async function ProfileSettingsPage() {
+  const supabase = await createClient();
   const authUser = await getUser();
   if (!authUser) return null;
   const userId = authUser.id;
 
-  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const { data: user } = await supabase
+    .from("auth.users")
+    .select("*")
+    .eq("id", userId)
+    .limit(1)
+    .single();
 
   if (!user) return null;
 
@@ -23,7 +27,11 @@ export default async function ProfileSettingsPage() {
 
       <Separator />
 
-      <ProfileForm defaultFullName={user.fullName} email={user.email} avatarUrl={user.avatarUrl} />
+      <ProfileForm
+        defaultFullName={user.user_metadata.full_name}
+        email={user.email}
+        avatarUrl={user.avatar_url}
+      />
     </div>
   );
 }

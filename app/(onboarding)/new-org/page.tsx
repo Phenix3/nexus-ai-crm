@@ -1,26 +1,22 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { organizationMembers } from "@/db/schema";
 import { getUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateOrgForm } from "./_components/create-org-form";
+import { createClient } from "@/lib/supabase/client";
 
 export default async function NewOrgPage() {
   const user = await getUser();
   if (!user) redirect("/sign-in");
   const userId = user.id;
 
-  // If user already belongs to an org, send them to select-org instead
-  const memberships = await db
-    .select({ id: organizationMembers.id })
-    .from(organizationMembers)
-    .where(eq(organizationMembers.userId, userId))
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("*")
+    .eq("user_id", userId)
     .limit(1);
 
-  if (memberships.length > 0) {
-    redirect("/select-org");
-  }
+  if (data && data.length > 0) redirect("/select-org");
 
   return (
     <Card className="w-full max-w-md">

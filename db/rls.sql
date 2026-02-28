@@ -1,13 +1,27 @@
 -- ============================================================
--- Row Level Security — Nexus CRM
+-- Row Level Security — Nexus CRM (Supabase Auth)
 -- Run this in the Supabase SQL editor AFTER the Drizzle migration.
+--
+-- Two-layer approach:
+--   1. postgres role  → used by Drizzle/server; gets full access via
+--      explicit bypass policies so DATABASE_URL always works.
+--   2. authenticated  → browser/client calls via Supabase JS;
+--      filtered to their own org data via auth.uid().
 -- ============================================================
 
--- Helper: returns the current user's organization_id from the session claim
--- set by the API middleware (Clerk JWT custom claim or session variable).
--- During dev you can test with: SET app.current_organization_id = '<uuid>';
+-- ── Helper: user's org IDs ────────────────────────────────────
+-- SECURITY DEFINER avoids re-applying RLS inside the policy subquery
+-- (fixes the "circular dependency" issue with self-referential policies).
+CREATE OR REPLACE FUNCTION public.get_my_org_ids()
+RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT organization_id
+  FROM organization_members
+  WHERE user_id = auth.uid()
+$$;
 
--- Enable RLS on all tenant tables
+-- ── Enable RLS ────────────────────────────────────────────────
 ALTER TABLE organizations        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_members ENABLE ROW LEVEL SECURITY;
@@ -20,132 +34,119 @@ ALTER TABLE tags                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_tags         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_usage             ENABLE ROW LEVEL SECURITY;
 
--- ── organizations ────────────────────────────────────────────
+-- ── Drop existing policies before recreating ─────────────────
+DO $$ DECLARE pol record; BEGIN
+  FOR pol IN
+    SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.policyname, pol.tablename);
+  END LOOP;
+END $$;
+
+-- ============================================================
+-- LAYER 1 — postgres role (Drizzle / server-side)
+-- Full access; application code enforces authorization.
+-- ============================================================
+
+CREATE POLICY "postgres: full access"
+  ON organizations        FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON users                FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON organization_members FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON contacts             FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON pipeline_stages      FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON deals                FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON activities           FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON notes                FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON tags                 FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON contact_tags         FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON ai_usage             FOR ALL TO postgres USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- LAYER 2 — authenticated role (Supabase JS client / browser)
+-- ============================================================
+
+-- ── users ─────────────────────────────────────────────────────
+CREATE POLICY "users: view own profile"
+  ON users FOR SELECT TO authenticated
+  USING (id = auth.uid());
+
+CREATE POLICY "users: update own profile"
+  ON users FOR UPDATE TO authenticated
+  USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+
+-- ── organizations ─────────────────────────────────────────────
 CREATE POLICY "members can view their organization"
-  ON organizations FOR SELECT
-  USING (
-    id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON organizations FOR SELECT TO authenticated
+  USING (id IN (SELECT get_my_org_ids()));
 
--- ── organization_members ─────────────────────────────────────
+-- ── organization_members ──────────────────────────────────────
 CREATE POLICY "members can view members of same org"
-  ON organization_members FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON organization_members FOR SELECT TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── contacts ─────────────────────────────────────────────────
+-- ── contacts ──────────────────────────────────────────────────
 CREATE POLICY "members can select contacts in their org"
-  ON contacts FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON contacts FOR SELECT TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
 CREATE POLICY "members can insert contacts in their org"
-  ON contacts FOR INSERT
-  WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON contacts FOR INSERT TO authenticated
+  WITH CHECK (organization_id IN (SELECT get_my_org_ids()));
 
 CREATE POLICY "members can update contacts in their org"
-  ON contacts FOR UPDATE
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON contacts FOR UPDATE TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
 CREATE POLICY "members can delete contacts in their org"
-  ON contacts FOR DELETE
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON contacts FOR DELETE TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── pipeline_stages ──────────────────────────────────────────
+-- ── pipeline_stages ───────────────────────────────────────────
 CREATE POLICY "members can manage pipeline stages in their org"
-  ON pipeline_stages FOR ALL
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON pipeline_stages FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── deals ────────────────────────────────────────────────────
+-- ── deals ─────────────────────────────────────────────────────
 CREATE POLICY "members can manage deals in their org"
-  ON deals FOR ALL
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON deals FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── activities ───────────────────────────────────────────────
+-- ── activities ────────────────────────────────────────────────
 CREATE POLICY "members can manage activities in their org"
-  ON activities FOR ALL
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON activities FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── notes ────────────────────────────────────────────────────
+-- ── notes ─────────────────────────────────────────────────────
 CREATE POLICY "members can manage notes in their org"
-  ON notes FOR ALL
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON notes FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── tags ─────────────────────────────────────────────────────
+-- ── tags ──────────────────────────────────────────────────────
 CREATE POLICY "members can manage tags in their org"
-  ON tags FOR ALL
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON tags FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));
 
--- ── contact_tags ─────────────────────────────────────────────
+-- ── contact_tags ──────────────────────────────────────────────
 CREATE POLICY "members can manage contact_tags in their org"
-  ON contact_tags FOR ALL
+  ON contact_tags FOR ALL TO authenticated
   USING (
     contact_id IN (
       SELECT id FROM contacts
-      WHERE organization_id IN (
-        SELECT organization_id FROM organization_members
-        WHERE user_id = auth.uid()
-      )
+      WHERE organization_id IN (SELECT get_my_org_ids())
     )
   );
 
--- ── ai_usage ─────────────────────────────────────────────────
+-- ── ai_usage ──────────────────────────────────────────────────
 CREATE POLICY "members can view ai_usage in their org"
-  ON ai_usage FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM organization_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  ON ai_usage FOR SELECT TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()));

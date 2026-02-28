@@ -6,20 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactForm } from "../../_components/contact-form";
-import type { Contact } from "@/db/schema/contacts";
+import type { Contact } from "@/lib/actions/contacts";
 
 interface ContactInfoCardProps {
   contact: Contact;
 }
 
 function getInitials(contact: Contact) {
-  const first = contact.firstName?.[0] ?? "";
-  const last = contact.lastName?.[0] ?? "";
+  const first = contact.first_name?.[0] ?? "";
+  const last = contact.last_name?.[0] ?? "";
   return (first + last).toUpperCase() || "?";
 }
 
 function getDisplayName(contact: Contact) {
-  return [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Unnamed";
+  return [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unnamed";
 }
 
 export function ContactInfoCard({ contact }: ContactInfoCardProps) {
@@ -38,7 +38,7 @@ export function ContactInfoCard({ contact }: ContactInfoCardProps) {
 
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-semibold">{getDisplayName(contact)}</h2>
-            {contact.jobTitle && <p className="text-sm text-zinc-500">{contact.jobTitle}</p>}
+            {contact.job_title && <p className="text-sm text-zinc-500">{contact.job_title}</p>}
             {contact.company && (
               <p className="text-sm text-zinc-500 flex items-center gap-1 mt-0.5">
                 <Building2 className="h-3.5 w-3.5" />
@@ -96,23 +96,23 @@ export function ContactInfoCard({ contact }: ContactInfoCardProps) {
             </div>
           )}
 
-          {contact.jobTitle && (
+          {contact.job_title && (
             <div className="flex items-center gap-3">
               <dt className="shrink-0">
                 <Briefcase className="h-4 w-4 text-zinc-400" />
               </dt>
-              <dd className="text-zinc-700">{contact.jobTitle}</dd>
+              <dd className="text-zinc-700">{contact.job_title}</dd>
             </div>
           )}
 
-          {contact.linkedinUrl && (
+          {contact.linkedin_url && (
             <div className="flex items-center gap-3">
               <dt className="shrink-0">
                 <Linkedin className="h-4 w-4 text-zinc-400" />
               </dt>
               <dd>
                 <a
-                  href={contact.linkedinUrl}
+                  href={contact.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:underline text-zinc-700"

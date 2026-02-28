@@ -1,15 +1,19 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { organizations } from "@/db/schema";
 import { getActiveOrgId } from "@/lib/org";
 import { Separator } from "@/components/ui/separator";
 import { OrgSettingsForm } from "./_components/org-settings-form";
+import { createClient } from "@/lib/supabase/client";
 
 export default async function GeneralSettingsPage() {
+  const supabase = await createClient();
   const orgId = await getActiveOrgId();
   if (!orgId) return null;
 
-  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("*")
+    .eq("id", orgId)
+    .limit(1)
+    .single();
 
   if (!org) return null;
 

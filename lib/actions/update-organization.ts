@@ -1,10 +1,8 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { db } from "@/db";
-import { organizations } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/org";
 import { requireRole } from "@/lib/permissions";
 
@@ -39,10 +37,14 @@ export async function updateOrganization(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  await db
-    .update(organizations)
-    .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(organizations.id, orgId));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("organizations")
+    .update({ ...parsed.data, updated_at: new Date().toISOString() })
+    .eq("id", orgId);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/settings/general");
   return { success: "Settings saved" };

@@ -1,9 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { and, eq, gt, isNull } from "drizzle-orm";
-import { db } from "@/db";
-import { invitations, organizationMembers } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 
@@ -12,36 +10,35 @@ export async function acceptInvitation(token: string): Promise<{ error: string }
   if (!user) redirect(`/sign-in?redirect_url=/invite/${token}`);
   const userId = user.id;
 
-  const [invite] = await db
+  const supabase = await createClient();
+
+  const { data: invite } = await supabase
+    .from("invitations")
     .select()
-    .from(invitations)
-    .where(
-      and(
-        eq(invitations.token, token),
-        isNull(invitations.acceptedAt),
-        gt(invitations.expiresAt, new Date())
-      )
-    )
-    .limit(1);
+    .eq("token", token)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
 
   if (!invite) {
     return { error: "This invitation is invalid or has expired." };
   }
 
   // Add member (ignore conflict if already a member)
-  await db
-    .insert(organizationMembers)
-    .values({
-      organizationId: invite.organizationId,
-      userId,
-      role: invite.role,
-    })
-    .onConflictDoNothing();
+  await supabase
+    .from("organization_members")
+    .upsert(
+      { organization_id: invite.organization_id, user_id: userId, role: invite.role },
+      { ignoreDuplicates: true }
+    );
 
   // Mark invitation as accepted
-  await db.update(invitations).set({ acceptedAt: new Date() }).where(eq(invitations.id, invite.id));
+  await supabase
+    .from("invitations")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("id", invite.id);
 
-  await setActiveOrgId(invite.organizationId);
+  await setActiveOrgId(invite.organization_id);
 
   redirect("/dashboard");
 }

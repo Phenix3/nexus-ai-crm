@@ -1,11 +1,10 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { users } from "@/db/schema";
 import { getUser } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { createClient } from "@/lib/supabase/client";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
   const authUser = await getUser();
 
   let userName: string | null = null;
@@ -13,11 +12,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let userAvatarUrl: string | null = null;
 
   if (authUser) {
-    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    const { data: dbUser } = await supabase
+      .from("auth.users")
+      .select("*")
+      .eq("id", authUser.id)
+      .limit(1)
+      .single();
+    console.log(dbUser);
     if (dbUser) {
-      userName = dbUser.fullName;
+      userName = dbUser.full_name;
       userEmail = dbUser.email;
-      userAvatarUrl = dbUser.avatarUrl;
+      userAvatarUrl = dbUser.avatar_url;
     }
   }
 

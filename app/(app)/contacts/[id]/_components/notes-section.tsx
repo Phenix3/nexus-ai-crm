@@ -17,8 +17,7 @@ function timeAgo(date: Date | string): string {
 }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { createNote, deleteNote, type NoteFormState } from "@/lib/actions/notes";
-import type { Note } from "@/db/schema/notes";
+import { createNote, deleteNote, type NoteFormState, type Note } from "@/lib/actions/notes";
 
 interface NotesSectionProps {
   contactId: string;
@@ -79,7 +78,7 @@ export function NotesSection({ contactId, notes }: NotesSectionProps) {
             <div key={note.id} className="group flex gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-zinc-700 whitespace-pre-wrap">{note.content}</p>
-                <p className="text-xs text-zinc-400 mt-1">{timeAgo(note.createdAt)}</p>
+                <p className="text-xs text-zinc-400 mt-1">{timeAgo(note.created_at)}</p>
               </div>
               <Button
                 variant="ghost"

@@ -34,20 +34,20 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactForm } from "./contact-form";
 import { deleteContact } from "@/lib/actions/contacts";
-import type { Contact } from "@/db/schema/contacts";
+import type { Contact } from "@/lib/actions/contacts";
 
 interface ContactsTableProps {
   contacts: Contact[];
 }
 
 function getInitials(contact: Contact) {
-  const first = contact.firstName?.[0] ?? "";
-  const last = contact.lastName?.[0] ?? "";
+  const first = contact.first_name?.[0] ?? "";
+  const last = contact.last_name?.[0] ?? "";
   return (first + last).toUpperCase() || "?";
 }
 
 function getDisplayName(contact: Contact) {
-  return [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Unnamed";
+  return [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unnamed";
 }
 
 export function ContactsTable({ contacts }: ContactsTableProps) {
@@ -61,8 +61,8 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      c.firstName?.toLowerCase().includes(q) ||
-      c.lastName?.toLowerCase().includes(q) ||
+      c.first_name?.toLowerCase().includes(q) ||
+      c.last_name?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
       c.company?.toLowerCase().includes(q) ||
       false
@@ -145,8 +145,8 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                       </Avatar>
                       <div className="min-w-0">
                         <p className="truncate font-medium text-sm">{getDisplayName(contact)}</p>
-                        {contact.jobTitle && (
-                          <p className="truncate text-xs text-zinc-500">{contact.jobTitle}</p>
+                        {contact.job_title && (
+                          <p className="truncate text-xs text-zinc-500">{contact.job_title}</p>
                         )}
                       </div>
                     </Link>

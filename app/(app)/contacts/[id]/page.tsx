@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: ContactPageProps) {
   const { id } = await params;
   const contact = await getContact(id);
   if (!contact) return { title: "Contact not found" };
-  const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || "Unnamed";
+  const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unnamed";
   return { title: `${name} — Nexus CRM` };
 }
 

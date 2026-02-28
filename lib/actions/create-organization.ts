@@ -2,9 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { organizations, organizationMembers } from "@/db/schema";
+import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 
@@ -41,23 +39,33 @@ export async function createOrganization(
 
   const { name, slug } = parsed.data;
 
-  // Check slug uniqueness
-  const existing = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .where(eq(organizations.slug, slug))
-    .limit(1);
+  const supabase = await createClient();
 
-  if (existing.length > 0) {
+  // Check slug uniqueness
+  const { data: existing } = await supabase
+    .from("organizations")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (existing) {
     return { fieldErrors: { slug: ["This slug is already taken"] } };
   }
 
   // Create org + add user as owner
-  const [org] = await db.insert(organizations).values({ name, slug }).returning();
+  const { data: org, error: orgError } = await supabase
+    .from("organizations")
+    .insert({ name, slug })
+    .select()
+    .single();
 
-  await db.insert(organizationMembers).values({
-    organizationId: org.id,
-    userId,
+  if (orgError || !org) {
+    return { error: orgError?.message ?? "Failed to create organization" };
+  }
+
+  await supabase.from("organization_members").insert({
+    organization_id: org.id,
+    user_id: userId,
     role: "owner",
   });
 
