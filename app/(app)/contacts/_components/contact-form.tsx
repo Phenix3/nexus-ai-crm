@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,30 +11,46 @@ import {
   type ContactFormState,
   type Contact,
 } from "@/lib/actions/contacts";
+import { setContactTags } from "@/lib/actions/contact-tags";
+import { TagsEditor } from "./tags-editor";
+import type { Tag } from "@/lib/actions/tags";
 
 interface ContactFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contact?: Contact;
+  allTags: Tag[];
 }
 
 const initialState: ContactFormState = {};
 
-export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
+export function ContactForm({ open, onOpenChange, contact, allTags }: ContactFormProps) {
   const isEdit = !!contact;
 
-  // Bind updateContact to the contact id for edit mode
   const action = isEdit ? updateContact.bind(null, contact.id) : createContact;
 
   const [state, formAction, isPending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    contact?.tags?.map((t) => t.id) ?? []
+  );
+
+  // Reset selected tags when contact changes (edit vs new)
   useEffect(() => {
-    if (state.success) {
+    setSelectedTagIds(contact?.tags?.map((t) => t.id) ?? []);
+  }, [contact]);
+
+  useEffect(() => {
+    if (state.success && state.contactId) {
+      // Assign tags after save
+      setContactTags(state.contactId, selectedTagIds).catch(() => {});
       onOpenChange(false);
       formRef.current?.reset();
+      setSelectedTagIds([]);
     }
-  }, [state.success, onOpenChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.success, state.contactId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,6 +146,15 @@ export function ContactForm({ open, onOpenChange, contact }: ContactFormProps) {
             {state.fieldErrors?.linkedinUrl && (
               <p className="text-xs text-red-500">{state.fieldErrors.linkedinUrl[0]}</p>
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Tags</Label>
+            <TagsEditor
+              allTags={allTags}
+              selectedTagIds={selectedTagIds}
+              onChangeTagIds={setSelectedTagIds}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

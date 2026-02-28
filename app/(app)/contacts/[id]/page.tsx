@@ -3,8 +3,11 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getContact } from "@/lib/actions/contacts";
 import { getContactNotes } from "@/lib/actions/notes";
+import { getContactActivities } from "@/lib/actions/activities";
+import { getTags } from "@/lib/actions/tags";
 import { ContactInfoCard } from "./_components/contact-info-card";
 import { NotesSection } from "./_components/notes-section";
+import { ActivityTimeline } from "./_components/activity-timeline";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -21,7 +24,12 @@ export async function generateMetadata({ params }: ContactPageProps) {
 export default async function ContactPage({ params }: ContactPageProps) {
   const { id } = await params;
 
-  const [contact, notes] = await Promise.all([getContact(id), getContactNotes(id)]);
+  const [contact, notes, activities, tags] = await Promise.all([
+    getContact(id),
+    getContactNotes(id),
+    getContactActivities(id),
+    getTags(),
+  ]);
 
   if (!contact) notFound();
 
@@ -38,11 +46,12 @@ export default async function ContactPage({ params }: ContactPageProps) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
         {/* Left column — contact info */}
-        <ContactInfoCard contact={contact} />
+        <ContactInfoCard contact={contact} allTags={tags} />
 
         {/* Right column — notes + activities */}
         <div className="flex flex-col gap-6">
           <NotesSection contactId={contact.id} notes={notes} />
+          <ActivityTimeline contactId={contact.id} activities={activities} />
         </div>
       </div>
     </div>

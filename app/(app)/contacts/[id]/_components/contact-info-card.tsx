@@ -6,10 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactForm } from "../../_components/contact-form";
+import { TagsEditor } from "../../_components/tags-editor";
+import { setContactTags } from "@/lib/actions/contact-tags";
+import { useRouter } from "next/navigation";
 import type { Contact } from "@/lib/actions/contacts";
+import type { Tag } from "@/lib/actions/tags";
 
 interface ContactInfoCardProps {
   contact: Contact;
+  allTags: Tag[];
 }
 
 function getInitials(contact: Contact) {
@@ -40,8 +45,10 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-export function ContactInfoCard({ contact }: ContactInfoCardProps) {
+export function ContactInfoCard({ contact, allTags }: ContactInfoCardProps) {
+  const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [tagIds, setTagIds] = useState<string[]>(contact.tags?.map((t) => t.id) ?? []);
 
   const scoreColor =
     contact.score >= 70
@@ -49,6 +56,12 @@ export function ContactInfoCard({ contact }: ContactInfoCardProps) {
       : contact.score >= 40
         ? "bg-amber-500"
         : "bg-zinc-300 dark:bg-zinc-600";
+
+  async function handleTagChange(ids: string[]) {
+    setTagIds(ids);
+    await setContactTags(contact.id, ids);
+    router.refresh();
+  }
 
   return (
     <>
@@ -98,6 +111,16 @@ export function ContactInfoCard({ contact }: ContactInfoCardProps) {
               style={{ width: `${Math.min(contact.score, 100)}%` }}
             />
           </div>
+        </div>
+
+        <div className="mx-6 h-px bg-zinc-100 dark:bg-zinc-800" />
+
+        {/* Tags */}
+        <div className="px-6 pt-4 pb-2">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            Tags
+          </p>
+          <TagsEditor allTags={allTags} selectedTagIds={tagIds} onChangeTagIds={handleTagChange} />
         </div>
 
         <div className="mx-6 h-px bg-zinc-100 dark:bg-zinc-800" />
@@ -183,7 +206,7 @@ export function ContactInfoCard({ contact }: ContactInfoCardProps) {
         </div>
       </div>
 
-      <ContactForm open={editOpen} onOpenChange={setEditOpen} contact={contact} />
+      <ContactForm open={editOpen} onOpenChange={setEditOpen} contact={contact} allTags={allTags} />
     </>
   );
 }

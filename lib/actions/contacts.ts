@@ -22,6 +22,7 @@ export type ContactFormState = {
   error?: string;
   fieldErrors?: Partial<Record<keyof z.infer<typeof contactSchema>, string[]>>;
   success?: boolean;
+  contactId?: string;
 };
 
 export type Contact = {
@@ -39,32 +40,89 @@ export type Contact = {
   owner_id: string | null;
   created_at: string;
   updated_at: string;
+  tags?: { id: string; name: string; color: string }[];
+};
+
+export type ContactFilters = {
+  q?: string;
+  tagId?: string;
+  scoreMin?: number;
+  scoreMax?: number;
+  ownerId?: string;
+  sort?: "first_name" | "last_name" | "score" | "created_at" | "updated_at";
+  dir?: "asc" | "desc";
+};
+
+export type OrgMember = {
+  user_id: string;
+  full_name: string | null;
+  email: string;
 };
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getContacts(search?: string): Promise<Contact[]> {
+export async function getContacts(filters: ContactFilters = {}): Promise<Contact[]> {
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error("No active organization");
 
   const supabase = await createClient();
 
-  let query = supabase
-    .from("contacts")
-    .select()
-    .eq("organization_id", orgId)
-    .order("first_name", { ascending: true })
-    .order("last_name", { ascending: true });
+  const { q, tagId, scoreMin, scoreMax, ownerId, sort = "first_name", dir = "asc" } = filters;
 
-  if (search) {
+  // Build select — always include tags
+  let selectStr = "*, contact_tags(tags(id, name, color))";
+  if (tagId) {
+    // inner join to filter by tag
+    selectStr = "*, contact_tags!inner(tag_id, tags(id, name, color))";
+  }
+
+  let query = supabase.from("contacts").select(selectStr).eq("organization_id", orgId);
+
+  if (tagId) {
+    query = query.eq("contact_tags.tag_id", tagId);
+  }
+
+  if (q) {
     query = query.or(
-      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`
+      `first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,company.ilike.%${q}%`
     );
+  }
+
+  if (scoreMin !== undefined) {
+    query = query.gte("score", scoreMin);
+  }
+  if (scoreMax !== undefined) {
+    query = query.lte("score", scoreMax);
+  }
+
+  if (ownerId) {
+    query = query.eq("owner_id", ownerId);
+  }
+
+  query = query.order(sort, { ascending: dir === "asc" });
+  if (sort !== "first_name") {
+    query = query.order("first_name", { ascending: true });
   }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as Contact[];
+
+  // Flatten nested tags shape from Supabase join
+  type RawRow = Record<string, unknown> & {
+    contact_tags?: { tags: { id: string; name: string; color: string } | null }[] | null;
+  };
+  const contacts = (data as unknown as RawRow[]).map((row) => {
+    const contactTags = row.contact_tags ?? [];
+    const tags = contactTags
+      .map((ct) => ct.tags)
+      .filter((t): t is { id: string; name: string; color: string } => t !== null);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contact_tags: _ct, ...rest } = row;
+    return { ...rest, tags } as Contact;
+  });
+
+  return contacts;
 }
 
 export async function getContact(id: string): Promise<Contact | null> {
@@ -75,12 +133,55 @@ export async function getContact(id: string): Promise<Contact | null> {
 
   const { data } = await supabase
     .from("contacts")
-    .select()
+    .select("*, contact_tags(tags(id, name, color))")
     .eq("id", id)
     .eq("organization_id", orgId)
     .maybeSingle();
 
-  return (data as Contact) ?? null;
+  if (!data) return null;
+
+  type RawRow = Record<string, unknown> & {
+    contact_tags?: { tags: { id: string; name: string; color: string } | null }[] | null;
+  };
+  const row = data as unknown as RawRow;
+  const contactTags = row.contact_tags ?? [];
+  const tags = contactTags
+    .map((ct) => ct.tags)
+    .filter((t): t is { id: string; name: string; color: string } => t !== null);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { contact_tags: _ct, ...rest } = row;
+  return { ...rest, tags } as Contact;
+}
+
+export async function getOrgMembers(): Promise<OrgMember[]> {
+  const orgId = await getActiveOrgId();
+  if (!orgId) throw new Error("No active organization");
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("user_id, users(full_name, email)")
+    .eq("organization_id", orgId);
+
+  if (error) throw new Error(error.message);
+
+  type RawMember = {
+    user_id: string;
+    users:
+      | { full_name: string | null; email: string }
+      | { full_name: string | null; email: string }[]
+      | null;
+  };
+  return ((data ?? []) as unknown as RawMember[]).map((m) => {
+    const users = Array.isArray(m.users) ? m.users[0] : m.users;
+    return {
+      user_id: m.user_id,
+      full_name: users?.full_name ?? null,
+      email: users?.email ?? "",
+    };
+  });
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -115,22 +216,26 @@ export async function createContact(
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("contacts").insert({
-    organization_id: orgId,
-    first_name: firstName,
-    last_name: lastName || null,
-    email: email || null,
-    phone: phone || null,
-    company: company || null,
-    job_title: jobTitle || null,
-    linkedin_url: linkedinUrl || null,
-    owner_id: userId,
-  });
+  const { data, error } = await supabase
+    .from("contacts")
+    .insert({
+      organization_id: orgId,
+      first_name: firstName,
+      last_name: lastName || null,
+      email: email || null,
+      phone: phone || null,
+      company: company || null,
+      job_title: jobTitle || null,
+      linkedin_url: linkedinUrl || null,
+      owner_id: userId,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
 
   revalidatePath("/contacts");
-  return { success: true };
+  return { success: true, contactId: data.id };
 }
 
 export async function updateContact(
@@ -182,7 +287,7 @@ export async function updateContact(
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
-  return { success: true };
+  return { success: true, contactId: id };
 }
 
 export async function deleteContact(id: string): Promise<{ error?: string }> {
