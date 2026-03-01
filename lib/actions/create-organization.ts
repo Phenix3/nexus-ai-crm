@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
+import { seedDefaultStages } from "@/lib/actions/pipeline-stages";
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -68,6 +69,9 @@ export async function createOrganization(
     user_id: userId,
     role: "owner",
   });
+
+  // Seed default pipeline stages for the new org
+  await seedDefaultStages(org.id);
 
   await setActiveOrgId(org.id);
 

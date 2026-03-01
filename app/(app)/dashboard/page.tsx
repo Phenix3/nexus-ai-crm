@@ -1,4 +1,12 @@
-import { Users, TrendingUp, Target, Activity, ArrowUpRight } from "lucide-react";
+import {
+  Users,
+  TrendingUp,
+  Target,
+  Activity,
+  ArrowUpRight,
+  AlertCircle,
+  Trophy,
+} from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
@@ -9,9 +17,22 @@ async function getDashboardStats() {
   const orgId = await getActiveOrgId();
   if (!orgId) return null;
 
-  const [contactsRes, dealsRes, activitiesRes] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [contactsRes, openDealsRes, wonDealsRes, overdueRes, activitiesRes] = await Promise.all([
     supabase.from("contacts").select("id, score", { count: "exact" }).eq("organization_id", orgId),
-    supabase.from("deals").select("id, value", { count: "exact" }).eq("organization_id", orgId),
+    supabase
+      .from("deals")
+      .select("id, value, probability")
+      .eq("organization_id", orgId)
+      .eq("status", "open"),
+    supabase.from("deals").select("id, value").eq("organization_id", orgId).eq("status", "won"),
+    supabase
+      .from("deals")
+      .select("id", { count: "exact" })
+      .eq("organization_id", orgId)
+      .eq("status", "open")
+      .lt("expected_close_date", today),
     supabase
       .from("activities")
       .select("id", { count: "exact" })
@@ -20,22 +41,46 @@ async function getDashboardStats() {
   ]);
 
   const contacts = contactsRes.data ?? [];
-  const deals = dealsRes.data ?? [];
+  const openDeals = (openDealsRes.data ?? []) as {
+    id: string;
+    value: string;
+    probability: number;
+  }[];
+  const wonDeals = (wonDealsRes.data ?? []) as { id: string; value: string }[];
 
   const avgScore =
     contacts.length > 0
       ? Math.round(contacts.reduce((s, c) => s + (c.score ?? 0), 0) / contacts.length)
       : 0;
 
-  const pipelineValue = deals.reduce((s, d) => s + (d.value ?? 0), 0);
+  const totalPipelineValue = openDeals.reduce((s, d) => s + Number(d.value), 0);
+  const weightedValue = openDeals.reduce((s, d) => s + Number(d.value) * (d.probability / 100), 0);
+  const wonValue = wonDeals.reduce((s, d) => s + Number(d.value), 0);
 
   return {
     totalContacts: contactsRes.count ?? contacts.length,
-    totalDeals: dealsRes.count ?? deals.length,
+    totalOpenDeals: openDeals.length,
+    totalPipelineValue,
+    weightedValue,
+    wonCount: wonDeals.length,
+    wonValue,
     avgScore,
-    pipelineValue,
+    overdueDeals: overdueRes.count ?? 0,
     recentActivities: activitiesRes.count ?? 0,
   };
+}
+
+function formatCurrency(value: number, currency = "EUR"): string {
+  try {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `${Math.round(value)} ${currency}`;
+  }
 }
 
 export default async function DashboardPage() {
@@ -44,43 +89,40 @@ export default async function DashboardPage() {
 
   const greeting = (() => {
     const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
+    if (h < 12) return "Bonjour";
+    if (h < 18) return "Bon après-midi";
+    return "Bonsoir";
   })();
 
   const statCards = [
     {
       label: "Total contacts",
-      value: stats?.totalContacts ?? 0,
+      value: String(stats?.totalContacts ?? 0),
       icon: Users,
       href: "/contacts",
-      trend: null,
       color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400",
     },
     {
       label: "Open deals",
-      value: stats?.totalDeals ?? 0,
+      value: String(stats?.totalOpenDeals ?? 0),
+      sub: stats?.totalPipelineValue ? formatCurrency(stats.totalPipelineValue) : undefined,
       icon: TrendingUp,
       href: "/deals",
-      trend: null,
       color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400",
     },
     {
       label: "Avg. lead score",
-      value: stats?.avgScore ?? 0,
-      suffix: "/ 100",
+      value: String(stats?.avgScore ?? 0),
+      sub: "/ 100",
       icon: Target,
       href: "/contacts",
-      trend: null,
       color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400",
     },
     {
       label: "Activities (7d)",
-      value: stats?.recentActivities ?? 0,
+      value: String(stats?.recentActivities ?? 0),
       icon: Activity,
       href: "/contacts",
-      trend: null,
       color: "text-violet-600 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400",
     },
   ];
@@ -90,8 +132,7 @@ export default async function DashboardPage() {
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {greeting}
-          {user ? "" : ""} 👋
+          {greeting} 👋
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Here&apos;s what&apos;s happening in your workspace today.
@@ -100,7 +141,7 @@ export default async function DashboardPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {statCards.map(({ label, value, suffix, icon: Icon, href, color }) => (
+        {statCards.map(({ label, value, sub, icon: Icon, href, color }) => (
           <Link
             key={label}
             href={href}
@@ -115,7 +156,7 @@ export default async function DashboardPage() {
             <div className="mt-4">
               <p className="text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
                 {value}
-                {suffix && <span className="ml-1 text-sm font-normal text-zinc-400">{suffix}</span>}
+                {sub && <span className="ml-1 text-sm font-normal text-zinc-400">{sub}</span>}
               </p>
               <p className="mt-0.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
             </div>
@@ -123,8 +164,52 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick actions */}
+      {/* Pipeline summary + alerts */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Pipeline health */}
+        <div className="rounded-xl border bg-white p-5 dark:bg-zinc-900/60 dark:border-zinc-800">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Pipeline</h2>
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500">Total value</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {formatCurrency(stats?.totalPipelineValue ?? 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-500">Weighted forecast</span>
+              <span className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+                {formatCurrency(stats?.weightedValue ?? 0)}
+              </span>
+            </div>
+            <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <Trophy className="h-3 w-3 text-emerald-500" />
+                Won this year
+              </span>
+              <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(stats?.wonValue ?? 0)}
+              </span>
+            </div>
+            {(stats?.overdueDeals ?? 0) > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs text-red-500">
+                  <AlertCircle className="h-3 w-3" />
+                  Overdue
+                </span>
+                <Link
+                  href="/deals"
+                  className="text-sm font-semibold tabular-nums text-red-500 hover:underline"
+                >
+                  {stats?.overdueDeals} deal{(stats?.overdueDeals ?? 0) !== 1 ? "s" : ""}
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick actions */}
         <div className="rounded-xl border bg-white p-5 dark:bg-zinc-900/60 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Quick actions</h2>
           <div className="mt-4 space-y-2">
@@ -145,20 +230,21 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-5 dark:bg-zinc-900/60 dark:border-zinc-800 sm:col-span-1 lg:col-span-2">
+        {/* Getting started */}
+        <div className="rounded-xl border bg-white p-5 dark:bg-zinc-900/60 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Getting started</h2>
           <div className="mt-4 space-y-3">
             {[
               {
                 step: "1",
-                label: "Import or add your first contacts",
+                label: "Add your first contact",
                 done: (stats?.totalContacts ?? 0) > 0,
                 href: "/contacts",
               },
               {
                 step: "2",
-                label: "Set up your sales pipeline",
-                done: (stats?.totalDeals ?? 0) > 0,
+                label: "Create a deal in the pipeline",
+                done: (stats?.totalOpenDeals ?? 0) > 0 || (stats?.wonCount ?? 0) > 0,
                 href: "/deals",
               },
               {

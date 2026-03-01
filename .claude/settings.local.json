@@ -15,7 +15,9 @@
       "Bash(python3:*)",
       "Bash(py:*)",
       "Bash(python:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(git ls-tree:*)"
     ]
   }
 }
