@@ -2,15 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import Link from "next/link";
-import {
-  Calendar,
-  Building2,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import { Calendar, Building2, MoreHorizontal, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

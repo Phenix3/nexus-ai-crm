@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getUser } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/org";
 
 async function getDashboardStats() {
@@ -84,7 +83,7 @@ function formatCurrency(value: number, currency = "EUR"): string {
 }
 
 export default async function DashboardPage() {
-  const user = await getUser();
+  // const user = await getUser();
   const stats = await getDashboardStats();
 
   const greeting = (() => {

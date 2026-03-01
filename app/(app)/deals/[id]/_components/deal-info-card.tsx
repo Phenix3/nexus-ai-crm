@@ -8,7 +8,6 @@ import {
   Building2,
   TrendingUp,
   CheckCircle2,
-  XCircle,
   RotateCcw,
   Trash2,
 } from "lucide-react";

@@ -2,11 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getContact } from "@/lib/actions/contacts";
-import { getContactNotes } from "@/lib/actions/notes";
-import { getContactActivities } from "@/lib/actions/activities";
+import { getContactTimeline } from "@/lib/actions/activities";
 import { getTags } from "@/lib/actions/tags";
 import { ContactInfoCard } from "./_components/contact-info-card";
-import { NotesSection } from "./_components/notes-section";
 import { ActivityTimeline } from "./_components/activity-timeline";
 import { AiChatPanel } from "./_components/ai-chat-panel";
 import { ContactAiActions } from "./_components/contact-ai-actions";
@@ -26,10 +24,9 @@ export async function generateMetadata({ params }: ContactPageProps) {
 export default async function ContactPage({ params }: ContactPageProps) {
   const { id } = await params;
 
-  const [contact, notes, activities, tags] = await Promise.all([
+  const [contact, timelineItems, tags] = await Promise.all([
     getContact(id),
-    getContactNotes(id),
-    getContactActivities(id),
+    getContactTimeline(id),
     getTags(),
   ]);
 
@@ -50,17 +47,16 @@ export default async function ContactPage({ params }: ContactPageProps) {
       </Link>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Left column — contact info */}
+        {/* Left column */}
         <div className="flex flex-col gap-4">
           <ContactInfoCard contact={contact} allTags={tags} />
           <ContactAiActions contactId={contact.id} contactName={contactName} />
         </div>
 
-        {/* Right column — AI chat + notes + activities */}
+        {/* Right column */}
         <div className="flex flex-col gap-6">
           <AiChatPanel contactId={contact.id} contactName={contactName} />
-          <NotesSection contactId={contact.id} notes={notes} />
-          <ActivityTimeline contactId={contact.id} activities={activities} />
+          <ActivityTimeline contactId={contact.id} items={timelineItems} />
         </div>
       </div>
     </div>
