@@ -8,6 +8,8 @@ import { getTags } from "@/lib/actions/tags";
 import { ContactInfoCard } from "./_components/contact-info-card";
 import { NotesSection } from "./_components/notes-section";
 import { ActivityTimeline } from "./_components/activity-timeline";
+import { AiChatPanel } from "./_components/ai-chat-panel";
+import { ContactAiActions } from "./_components/contact-ai-actions";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -33,8 +35,11 @@ export default async function ContactPage({ params }: ContactPageProps) {
 
   if (!contact) notFound();
 
+  const contactName =
+    [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unnamed";
+
   return (
-    <div className="flex flex-col gap-6 max-w-4xl">
+    <div className="flex flex-col gap-6 max-w-5xl">
       {/* Breadcrumb */}
       <Link
         href="/contacts"
@@ -44,12 +49,16 @@ export default async function ContactPage({ params }: ContactPageProps) {
         Back to contacts
       </Link>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
         {/* Left column — contact info */}
-        <ContactInfoCard contact={contact} allTags={tags} />
+        <div className="flex flex-col gap-4">
+          <ContactInfoCard contact={contact} allTags={tags} />
+          <ContactAiActions contactId={contact.id} contactName={contactName} />
+        </div>
 
-        {/* Right column — notes + activities */}
+        {/* Right column — AI chat + notes + activities */}
         <div className="flex flex-col gap-6">
+          <AiChatPanel contactId={contact.id} contactName={contactName} />
           <NotesSection contactId={contact.id} notes={notes} />
           <ActivityTimeline contactId={contact.id} activities={activities} />
         </div>
