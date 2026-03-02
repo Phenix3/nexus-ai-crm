@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { getUnreadAlerts } from "@/lib/actions/alerts";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,11 +31,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
-      <Sidebar userName={userName} userEmail={userEmail} userAvatarUrl={userAvatarUrl} />
+      {/* Sidebar — hidden on mobile */}
+      <div className="hidden lg:flex">
+        <Sidebar userName={userName} userEmail={userEmail} userAvatarUrl={userAvatarUrl} />
+      </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header unreadAlerts={unreadAlerts} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
       </div>
+      {/* Mobile bottom nav */}
+      <MobileNav />
     </div>
   );
 }

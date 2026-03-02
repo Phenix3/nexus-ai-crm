@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Plus, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { Bell, Plus, AlertCircle, Info, AlertTriangle, Zap } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,6 +25,7 @@ const breadcrumbs: Record<string, { label: string; sub?: Record<string, string> 
       team: "Team",
       billing: "Billing",
       integrations: "Integrations",
+      privacy: "Privacy & Data",
     },
   },
 };
@@ -89,16 +90,26 @@ export function Header({ unreadAlerts = [] }: HeaderProps) {
   const unreadCount = unreadAlerts.length;
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-white/80 px-6 backdrop-blur-sm dark:bg-zinc-950/80">
-      {/* Breadcrumb */}
+    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-white/80 px-4 lg:px-6 backdrop-blur-sm dark:bg-zinc-950/80">
+      {/* Logo on mobile / Breadcrumb on desktop */}
       <div className="flex items-center gap-2 text-sm">
-        {parent && (
-          <>
-            <span className="text-zinc-400">{parent}</span>
-            <span className="text-zinc-300 dark:text-zinc-600">/</span>
-          </>
-        )}
-        <h1 className="font-semibold text-zinc-900 dark:text-zinc-50">{title}</h1>
+        {/* Mobile: show logo */}
+        <div className="flex lg:hidden items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
+            <Zap className="h-3 w-3 text-white" strokeWidth={2.5} />
+          </div>
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{title}</span>
+        </div>
+        {/* Desktop: show breadcrumb */}
+        <div className="hidden lg:flex items-center gap-2">
+          {parent && (
+            <>
+              <span className="text-zinc-400">{parent}</span>
+              <span className="text-zinc-300 dark:text-zinc-600">/</span>
+            </>
+          )}
+          <h1 className="font-semibold text-zinc-900 dark:text-zinc-50">{title}</h1>
+        </div>
       </div>
 
       {/* Actions */}

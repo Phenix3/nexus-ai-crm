@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings2, User, Users, CreditCard, Plug } from "lucide-react";
+import { Settings2, User, Users, CreditCard, Plug, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/settings/team", label: "Team", icon: Users },
   { href: "/settings/billing", label: "Billing", icon: CreditCard },
   { href: "/settings/integrations", label: "Integrations", icon: Plug },
+  { href: "/settings/privacy", label: "Privacy & Data", icon: Shield },
 ];
 
 export function SettingsNav() {

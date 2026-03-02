@@ -2,10 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { render } from "@react-email/render";
 import { createClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { setActiveOrgId } from "@/lib/org";
 import { seedDefaultStages } from "@/lib/actions/pipeline-stages";
+import { resend, FROM_EMAIL } from "@/lib/resend";
+import { WelcomeEmail } from "@/emails/WelcomeEmail";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://nexuscrm.io";
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -75,5 +80,28 @@ export async function createOrganization(
 
   await setActiveOrgId(org.id);
 
-  redirect("/dashboard");
+  // Send welcome email (non-blocking)
+  const { data: dbUser } = await supabase
+    .from("users")
+    .select("full_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (dbUser?.email) {
+    const firstName = dbUser.full_name?.split(" ")[0] ?? "there";
+    render(WelcomeEmail({ firstName, orgName: name, appUrl: APP_URL }))
+      .then((html) =>
+        resend.emails.send({
+          from: FROM_EMAIL,
+          to: dbUser.email!,
+          subject: `Welcome to Nexus CRM — your workspace is ready 🚀`,
+          html,
+        })
+      )
+      .catch(() => {
+        // Non-blocking — don't fail org creation if email fails
+      });
+  }
+
+  redirect("/onboarding/setup");
 }
