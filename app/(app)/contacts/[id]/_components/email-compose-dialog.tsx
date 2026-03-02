@@ -20,7 +20,6 @@ interface EmailComposeDialogProps {
   contactId: string;
   contactEmail: string | null;
   contactName: string;
-  gmailConnected: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -29,7 +28,6 @@ export function EmailComposeDialog({
   contactId,
   contactEmail,
   contactName,
-  gmailConnected,
   open,
   onOpenChange,
 }: EmailComposeDialogProps) {
@@ -71,7 +69,7 @@ export function EmailComposeDialog({
     setError(null);
 
     startTransition(async () => {
-      const res = await fetch("/api/gmail/send", {
+      const res = await fetch("/api/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contactId, contactEmail, subject, body, tracking }),
@@ -87,29 +85,6 @@ export function EmailComposeDialog({
       router.refresh();
       setTimeout(() => handleOpenChange(false), 1500);
     });
-  }
-
-  if (!gmailConnected) {
-    return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Send Email
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-center space-y-3">
-            <p className="text-sm text-zinc-500">
-              Connect your Gmail account first to send emails from Nexus CRM.
-            </p>
-            <Button asChild size="sm">
-              <a href="/settings/integrations">Connect Gmail</a>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
   }
 
   return (

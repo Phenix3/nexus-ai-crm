@@ -4,7 +4,6 @@ import { ChevronLeft } from "lucide-react";
 import { getContact } from "@/lib/actions/contacts";
 import { getContactTimeline } from "@/lib/actions/activities";
 import { getTags } from "@/lib/actions/tags";
-import { getGmailIntegration } from "@/lib/actions/integrations";
 import { createClient } from "@/lib/supabase/server";
 import { ContactInfoCard } from "./_components/contact-info-card";
 import { ActivityTimeline } from "./_components/activity-timeline";
@@ -46,11 +45,10 @@ export default async function ContactPage({ params }: ContactPageProps) {
     }));
   }
 
-  const [contact, timelineItems, tags, gmailIntegration, scoreHistory] = await Promise.all([
+  const [contact, timelineItems, tags, scoreHistory] = await Promise.all([
     getContact(id),
     getContactTimeline(id),
     getTags(),
-    getGmailIntegration(),
     getScoreHistory(id),
   ]);
 
@@ -85,7 +83,6 @@ export default async function ContactPage({ params }: ContactPageProps) {
             contactId={contact.id}
             contactEmail={contact.email}
             contactName={contactName}
-            gmailConnected={!!gmailIntegration}
             items={timelineItems}
           />
         </div>

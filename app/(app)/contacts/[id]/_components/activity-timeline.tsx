@@ -32,7 +32,6 @@ interface UnifiedTimelineProps {
   contactId: string;
   contactEmail?: string | null;
   contactName?: string;
-  gmailConnected?: boolean;
   items: TimelineItem[];
 }
 
@@ -100,7 +99,6 @@ export function ActivityTimeline({
   contactId,
   contactEmail,
   contactName = "Contact",
-  gmailConnected = false,
   items = [],
 }: UnifiedTimelineProps) {
   const router = useRouter();
@@ -320,7 +318,6 @@ export function ActivityTimeline({
         contactId={contactId}
         contactEmail={contactEmail ?? null}
         contactName={contactName}
-        gmailConnected={gmailConnected}
         open={emailDialogOpen}
         onOpenChange={setEmailDialogOpen}
       />
