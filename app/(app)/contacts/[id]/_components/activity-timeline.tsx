@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ActivityLogDialog } from "./activity-log-dialog";
+import { EmailComposeDialog } from "./email-compose-dialog";
 import {
   deleteActivity,
   pinActivity,
@@ -29,6 +30,9 @@ import { useRouter } from "next/navigation";
 
 interface UnifiedTimelineProps {
   contactId: string;
+  contactEmail?: string | null;
+  contactName?: string;
+  gmailConnected?: boolean;
   items: TimelineItem[];
 }
 
@@ -92,10 +96,17 @@ const FILTERS: { key: FilterType; label: string }[] = [
 
 const initialNoteState: NoteFormState = {};
 
-export function ActivityTimeline({ contactId, items }: UnifiedTimelineProps) {
+export function ActivityTimeline({
+  contactId,
+  contactEmail,
+  contactName = "Contact",
+  gmailConnected = false,
+  items = [],
+}: UnifiedTimelineProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [noteFormOpen, setNoteFormOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -180,6 +191,15 @@ export function ActivityTimeline({ contactId, items }: UnifiedTimelineProps) {
           >
             <StickyNote className="h-3 w-3" />
             Note
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 text-xs"
+            onClick={() => setEmailDialogOpen(true)}
+          >
+            <Mail className="h-3 w-3" />
+            Send email
           </Button>
           <Button
             size="sm"
@@ -296,6 +316,14 @@ export function ActivityTimeline({ contactId, items }: UnifiedTimelineProps) {
       </div>
 
       <ActivityLogDialog contactId={contactId} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <EmailComposeDialog
+        contactId={contactId}
+        contactEmail={contactEmail ?? null}
+        contactName={contactName}
+        gmailConnected={gmailConnected}
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+      />
     </div>
   );
 }

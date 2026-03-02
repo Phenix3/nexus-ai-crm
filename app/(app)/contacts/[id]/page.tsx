@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { getContact } from "@/lib/actions/contacts";
 import { getContactTimeline } from "@/lib/actions/activities";
 import { getTags } from "@/lib/actions/tags";
+import { getGmailIntegration } from "@/lib/actions/integrations";
 import { ContactInfoCard } from "./_components/contact-info-card";
 import { ActivityTimeline } from "./_components/activity-timeline";
 import { AiChatPanel } from "./_components/ai-chat-panel";
@@ -24,10 +25,11 @@ export async function generateMetadata({ params }: ContactPageProps) {
 export default async function ContactPage({ params }: ContactPageProps) {
   const { id } = await params;
 
-  const [contact, timelineItems, tags] = await Promise.all([
+  const [contact, timelineItems, tags, gmailIntegration] = await Promise.all([
     getContact(id),
     getContactTimeline(id),
     getTags(),
+    getGmailIntegration(),
   ]);
 
   if (!contact) notFound();
@@ -56,7 +58,13 @@ export default async function ContactPage({ params }: ContactPageProps) {
         {/* Right column */}
         <div className="flex flex-col gap-6">
           <AiChatPanel contactId={contact.id} contactName={contactName} />
-          <ActivityTimeline contactId={contact.id} items={timelineItems} />
+          <ActivityTimeline
+            contactId={contact.id}
+            contactEmail={contact.email}
+            contactName={contactName}
+            gmailConnected={!!gmailIntegration}
+            items={timelineItems}
+          />
         </div>
       </div>
     </div>

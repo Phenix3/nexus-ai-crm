@@ -32,7 +32,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://*.supabase.co",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // API connections: Supabase, Sentry, PostHog
+      // API connections: Supabase, Sentry, PostHog, Google OAuth
       [
         "connect-src 'self'",
         "https://*.supabase.co",
@@ -40,6 +40,9 @@ const securityHeaders = [
         "https://*.sentry.io",
         "https://*.posthog.com",
         "https://eu.i.posthog.com",
+        "https://accounts.google.com",
+        "https://oauth2.googleapis.com",
+        "https://www.googleapis.com",
       ].join(" "),
       "frame-ancestors 'none'",
       "base-uri 'self'",

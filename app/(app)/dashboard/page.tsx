@@ -69,7 +69,7 @@ async function getDashboardStats() {
   };
 }
 
-function formatCurrency(value: number, currency = "EUR"): string {
+function formatCurrency(value: number, currency = "XAF"): string {
   try {
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",

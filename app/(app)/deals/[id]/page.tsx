@@ -4,10 +4,8 @@ import { ChevronLeft } from "lucide-react";
 import { getDeal } from "@/lib/actions/deals";
 import { getPipelineStages } from "@/lib/actions/pipeline-stages";
 import { getContacts } from "@/lib/actions/contacts";
-import { getContactNotes } from "@/lib/actions/notes";
-import { getContactActivities } from "@/lib/actions/activities";
+import { getContactTimeline } from "@/lib/actions/activities";
 import { DealInfoCard } from "./_components/deal-info-card";
-import { NotesSection } from "../../contacts/[id]/_components/notes-section";
 import { ActivityTimeline } from "../../contacts/[id]/_components/activity-timeline";
 
 interface DealPageProps {
@@ -32,11 +30,10 @@ export default async function DealPage({ params }: DealPageProps) {
 
   if (!deal) notFound();
 
-  // If deal is linked to a contact, fetch related notes/activities
-  const [notes, activities] = await Promise.all([
-    deal.contact_id ? getContactNotes(deal.contact_id) : Promise.resolve([]),
-    deal.contact_id ? getContactActivities(deal.contact_id) : Promise.resolve([]),
-  ]);
+  // If deal is linked to a contact, fetch unified timeline
+  const timelineItems = await (deal.contact_id
+    ? getContactTimeline(deal.contact_id)
+    : Promise.resolve([]));
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -56,10 +53,7 @@ export default async function DealPage({ params }: DealPageProps) {
         {/* Right — contact notes + activities */}
         <div className="flex flex-col gap-6">
           {deal.contact_id ? (
-            <>
-              <NotesSection contactId={deal.contact_id} notes={notes} />
-              <ActivityTimeline contactId={deal.contact_id} activities={activities} />
-            </>
+            <ActivityTimeline contactId={deal.contact_id} items={timelineItems} />
           ) : (
             <div className="flex items-center justify-center rounded-xl border border-dashed border-zinc-200 py-12 text-center dark:border-zinc-700">
               <div>
