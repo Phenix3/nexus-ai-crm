@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, TrendingUp, Inbox, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -37,6 +38,10 @@ export function MobileNav() {
             </Link>
           );
         })}
+        <div className="flex flex-col items-center gap-0.5 px-3 py-2">
+          <ThemeToggle />
+          <span className="text-[10px] font-medium text-zinc-400">Theme</span>
+        </div>
       </div>
     </nav>
   );

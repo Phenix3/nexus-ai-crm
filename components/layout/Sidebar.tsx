@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 const mainNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -136,6 +137,7 @@ export function Sidebar({ userName, userEmail, userAvatarUrl }: SidebarProps) {
           </p>
           <p className="truncate text-[11px] leading-tight text-zinc-400">{userEmail ?? ""}</p>
         </div>
+        <ThemeToggle />
         <form action={signOut}>
           <button
             type="submit"
