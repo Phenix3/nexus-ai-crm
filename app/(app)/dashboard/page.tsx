@@ -6,10 +6,63 @@ import {
   ArrowUpRight,
   AlertCircle,
   Trophy,
+  Star,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrgId } from "@/lib/org";
+
+async function getDailyPriorities(orgId: string) {
+  const supabase = await createClient();
+  const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const today = new Date().toISOString().slice(0, 10);
+  const in7d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const [topContactsRes, atRiskDealsRes] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select("id, first_name, last_name, company, score")
+      .eq("organization_id", orgId)
+      .order("score", { ascending: false })
+      .limit(5),
+    supabase
+      .from("deals")
+      .select("id, title, value, currency, expected_close_date, contact_id")
+      .eq("organization_id", orgId)
+      .eq("status", "open")
+      .not("expected_close_date", "is", null)
+      .gte("expected_close_date", today)
+      .lte("expected_close_date", in7d)
+      .order("expected_close_date", { ascending: true })
+      .limit(3),
+  ]);
+
+  // Filter top contacts with recent activity
+  const topContacts = (topContactsRes.data ?? []).filter((c) => (c.score ?? 0) > 0);
+
+  const atRiskDeals = (atRiskDealsRes.data ?? []) as {
+    id: string;
+    title: string;
+    value: string;
+    currency: string;
+    expected_close_date: string;
+  }[];
+
+  // Also fetch contacts with activity in last 7d
+  const { data: activeContactIds } = await supabase
+    .from("activities")
+    .select("contact_id")
+    .eq("organization_id", orgId)
+    .gte("occurred_at", since7d)
+    .not("contact_id", "is", null)
+    .limit(50);
+
+  const activeIds = new Set((activeContactIds ?? []).map((a) => a.contact_id));
+  const priorityContacts = topContacts.filter((c) => activeIds.has(c.id)).slice(0, 5);
+
+  return { priorityContacts, atRiskDeals };
+}
 
 async function getDashboardStats() {
   const supabase = await createClient();
@@ -83,8 +136,11 @@ function formatCurrency(value: number, currency = "XAF"): string {
 }
 
 export default async function DashboardPage() {
-  // const user = await getUser();
-  const stats = await getDashboardStats();
+  const orgId = await getActiveOrgId();
+  const [stats, priorities] = await Promise.all([
+    getDashboardStats(),
+    orgId ? getDailyPriorities(orgId) : Promise.resolve({ priorityContacts: [], atRiskDeals: [] }),
+  ]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -229,55 +285,78 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Getting started */}
+        {/* Today's priorities */}
         <div className="rounded-xl border bg-white p-5 dark:bg-zinc-900/60 dark:border-zinc-800">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Getting started</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              Today&apos;s priorities
+            </h2>
+            <Star className="h-4 w-4 text-amber-400" />
+          </div>
           <div className="mt-4 space-y-3">
-            {[
-              {
-                step: "1",
-                label: "Add your first contact",
-                done: (stats?.totalContacts ?? 0) > 0,
-                href: "/contacts",
-              },
-              {
-                step: "2",
-                label: "Create a deal in the pipeline",
-                done: (stats?.totalOpenDeals ?? 0) > 0 || (stats?.wonCount ?? 0) > 0,
-                href: "/deals",
-              },
-              {
-                step: "3",
-                label: "Invite your team",
-                done: false,
-                href: "/settings/team",
-              },
-            ].map(({ step, label, done, href }) => (
-              <Link
-                key={step}
-                href={href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
-              >
-                <div
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done
-                      ? "bg-primary text-white"
-                      : "border-2 border-zinc-200 text-zinc-400 dark:border-zinc-700"
-                  }`}
-                >
-                  {done ? "✓" : step}
-                </div>
-                <span
-                  className={`text-sm ${
-                    done
-                      ? "text-zinc-400 line-through dark:text-zinc-600"
-                      : "text-zinc-700 dark:text-zinc-300"
-                  }`}
-                >
-                  {label}
-                </span>
-              </Link>
-            ))}
+            {priorities.priorityContacts.length === 0 && priorities.atRiskDeals.length === 0 ? (
+              <p className="text-xs text-zinc-400 text-center py-4">
+                No priorities yet — scores are calculated every 6h.
+              </p>
+            ) : (
+              <>
+                {priorities.priorityContacts.slice(0, 3).map((c) => {
+                  const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed";
+                  const scoreColor =
+                    (c.score ?? 0) >= 70
+                      ? "text-emerald-600"
+                      : (c.score ?? 0) >= 40
+                        ? "text-amber-600"
+                        : "text-red-500";
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/contacts/${c.id}`}
+                      className="flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                          {name}
+                        </p>
+                        {c.company && <p className="text-xs text-zinc-400 truncate">{c.company}</p>}
+                      </div>
+                      <span className={`text-sm font-bold tabular-nums ${scoreColor}`}>
+                        {c.score ?? 0}
+                      </span>
+                    </Link>
+                  );
+                })}
+                {priorities.atRiskDeals.length > 0 && (
+                  <>
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+                    {priorities.atRiskDeals.map((d) => {
+                      const now = new Date();
+                      const daysLeft = Math.ceil(
+                        (new Date(d.expected_close_date).getTime() - now.getTime()) /
+                          (24 * 60 * 60 * 1000)
+                      );
+                      return (
+                        <Link
+                          key={d.id}
+                          href="/deals"
+                          className="flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Clock className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                            <p className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
+                              {d.title}
+                            </p>
+                          </div>
+                          <span className="text-xs font-medium text-orange-500 shrink-0 ml-2">
+                            {daysLeft}d left
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

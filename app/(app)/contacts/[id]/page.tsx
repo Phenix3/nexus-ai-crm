@@ -5,10 +5,12 @@ import { getContact } from "@/lib/actions/contacts";
 import { getContactTimeline } from "@/lib/actions/activities";
 import { getTags } from "@/lib/actions/tags";
 import { getGmailIntegration } from "@/lib/actions/integrations";
+import { createClient } from "@/lib/supabase/server";
 import { ContactInfoCard } from "./_components/contact-info-card";
 import { ActivityTimeline } from "./_components/activity-timeline";
 import { AiChatPanel } from "./_components/ai-chat-panel";
 import { ContactAiActions } from "./_components/contact-ai-actions";
+import { ScoreHistoryChart } from "./_components/score-history-chart";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -25,11 +27,31 @@ export async function generateMetadata({ params }: ContactPageProps) {
 export default async function ContactPage({ params }: ContactPageProps) {
   const { id } = await params;
 
-  const [contact, timelineItems, tags, gmailIntegration] = await Promise.all([
+  async function getScoreHistory(contactId: string) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("activities")
+      .select("occurred_at, metadata")
+      .eq("contact_id", contactId)
+      .eq("type", "score_update")
+      .order("occurred_at", { ascending: true })
+      .limit(30);
+
+    return (data ?? []).map((a) => ({
+      date: new Date((a as { occurred_at: string }).occurred_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      score: Number((a as { metadata: Record<string, unknown> }).metadata?.new_score ?? 0),
+    }));
+  }
+
+  const [contact, timelineItems, tags, gmailIntegration, scoreHistory] = await Promise.all([
     getContact(id),
     getContactTimeline(id),
     getTags(),
     getGmailIntegration(),
+    getScoreHistory(id),
   ]);
 
   if (!contact) notFound();
@@ -52,6 +74,7 @@ export default async function ContactPage({ params }: ContactPageProps) {
         {/* Left column */}
         <div className="flex flex-col gap-4">
           <ContactInfoCard contact={contact} allTags={tags} />
+          <ScoreHistoryChart data={scoreHistory} currentScore={contact.score ?? 0} />
           <ContactAiActions contactId={contact.id} contactName={contactName} />
         </div>
 

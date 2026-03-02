@@ -34,6 +34,7 @@ ALTER TABLE tags                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_tags         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_usage             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oauth_tokens         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alerts               ENABLE ROW LEVEL SECURITY;
 
 -- ── Drop existing policies before recreating ─────────────────
 DO $$ DECLARE pol record; BEGIN
@@ -73,6 +74,8 @@ CREATE POLICY "postgres: full access"
   ON ai_usage             FOR ALL TO postgres USING (true) WITH CHECK (true);
 CREATE POLICY "postgres: full access"
   ON oauth_tokens         FOR ALL TO postgres USING (true) WITH CHECK (true);
+CREATE POLICY "postgres: full access"
+  ON alerts               FOR ALL TO postgres USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- LAYER 2 — authenticated role (Supabase JS client / browser)
@@ -159,3 +162,9 @@ CREATE POLICY "users can manage their own oauth tokens"
   ON oauth_tokens FOR ALL TO authenticated
   USING (user_id = auth.uid() AND organization_id IN (SELECT get_my_org_ids()))
   WITH CHECK (user_id = auth.uid() AND organization_id IN (SELECT get_my_org_ids()));
+
+-- ── alerts ─────────────────────────────────────────────────────
+CREATE POLICY "members can manage alerts in their org"
+  ON alerts FOR ALL TO authenticated
+  USING (organization_id IN (SELECT get_my_org_ids()))
+  WITH CHECK (organization_id IN (SELECT get_my_org_ids()));

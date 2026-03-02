@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { getUnreadAlerts } from "@/lib/actions/alerts";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const authUser = await getUser();
@@ -25,11 +26,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
   }
 
+  const unreadAlerts = await getUnreadAlerts(5).catch(() => []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
       <Sidebar userName={userName} userEmail={userEmail} userAvatarUrl={userAvatarUrl} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+        <Header unreadAlerts={unreadAlerts} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

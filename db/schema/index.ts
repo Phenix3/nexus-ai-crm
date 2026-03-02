@@ -10,3 +10,4 @@ export * from "./tags";
 export * from "./ai-usage";
 export * from "./invitations";
 export * from "./oauth-tokens";
+export * from "./alerts";

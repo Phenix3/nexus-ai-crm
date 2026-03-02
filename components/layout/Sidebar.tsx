@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, TrendingUp, Inbox, Settings, LogOut, Zap } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  TrendingUp,
+  Inbox,
+  Bell,
+  Settings,
+  LogOut,
+  Zap,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
@@ -12,6 +21,7 @@ const mainNav = [
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/deals", label: "Deals", icon: TrendingUp },
   { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/alerts", label: "Alerts", icon: Bell },
 ];
 
 interface SidebarProps {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Send, Sparkles, RotateCcw, Bot, User } from "lucide-react";
+import { Send, Sparkles, RotateCcw, Bot, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -13,10 +13,10 @@ interface AiChatPanelProps {
 }
 
 const QUICK_PROMPTS = [
-  "What is the next best action for this contact?",
-  "Draft a follow-up email",
-  "What are the risks on the associated deal?",
-  "How should I prepare for my next meeting?",
+  { text: "What is the next best action for this contact?", icon: null },
+  { text: "Draft a follow-up email", icon: null },
+  { text: "What are the risks on the associated deal?", icon: null },
+  { text: "Prepare a briefing for my next meeting", icon: Calendar },
 ];
 
 function getMessageText(parts: { type: string; text?: string }[]): string {
@@ -145,13 +145,14 @@ export function AiChatPanel({ contactId, contactName }: AiChatPanelProps) {
 
             {/* Quick prompts */}
             <div className="grid grid-cols-1 gap-1.5">
-              {QUICK_PROMPTS.map((prompt) => (
+              {QUICK_PROMPTS.map(({ text: prompt, icon: PromptIcon }) => (
                 <button
                   key={prompt}
                   type="button"
                   onClick={() => handleQuickPrompt(prompt)}
-                  className="text-left rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-violet-700 dark:hover:bg-violet-950/30 dark:hover:text-violet-400"
+                  className="flex items-center gap-2 text-left rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-violet-700 dark:hover:bg-violet-950/30 dark:hover:text-violet-400"
                 >
+                  {PromptIcon && <PromptIcon className="h-3.5 w-3.5 shrink-0 text-violet-500" />}
                   {prompt}
                 </button>
               ))}

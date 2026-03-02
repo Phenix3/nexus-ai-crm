@@ -447,6 +447,27 @@ function ActivityItem({
                 {activity.subject}
               </p>
             )}
+            {activity.type === "email" &&
+              (() => {
+                const meta = activity.metadata as Record<string, unknown> | null;
+                const sentiment = meta?.sentiment as string | undefined;
+                if (!sentiment || sentiment === "neutral") return null;
+                const badgeClass =
+                  {
+                    positive:
+                      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+                    urgent:
+                      "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400",
+                    negative: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
+                  }[sentiment] ?? "bg-zinc-100 text-zinc-500";
+                return (
+                  <span
+                    className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${badgeClass}`}
+                  >
+                    {sentiment}
+                  </span>
+                );
+              })()}
             {activity.body && (
               <>
                 <p
